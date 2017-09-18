@@ -174,9 +174,13 @@ func unrecoverableError(err error) bool {
 
 // Check if the instance is a MaxScale binlog server (a proxy not a real
 // MySQL server) and also update the resolved hostname
-func (instance *Instance) checkMaxScale(db *sql.DB, latency *stopwatch.NamedStopwatch) (isMaxScale bool, resolvedHostname string, err error) {
+func (instance *Instance) checkMaxScale(db *sql.DB, latency stopwatch.BaseNamedStopwatch) (isMaxScale bool, resolvedHostname string, err error) {
 	if config.Config.SkipMaxScaleCheck {
 		return isMaxScale, resolvedHostname, err
+	}
+
+	if latency == nil {
+		latency = stopwatch.NewDummyNamedStopwatch()
 	}
 
 	latencyInstanceStop := latency.Start("instance")
@@ -243,7 +247,7 @@ func AreReplicationThreadsRunning(instanceKey *InstanceKey) (replicationThreadsR
 // It writes the information retrieved into orchestrator's backend.
 // - writes are optionally buffered.
 // - timing information can be collected for the stages performed.
-func ReadTopologyInstanceBufferable(instanceKey *InstanceKey, bufferWrites bool, latency *stopwatch.NamedStopwatch) (*Instance, error) {
+func ReadTopologyInstanceBufferable(instanceKey *InstanceKey, bufferWrites bool, latency stopwatch.BaseNamedStopwatch) (*Instance, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			logReadTopologyInstanceError(instanceKey, "Unexpected, aborting", fmt.Errorf("%+v", err))
@@ -263,6 +267,10 @@ func ReadTopologyInstanceBufferable(instanceKey *InstanceKey, bufferWrites bool,
 	isMaxScale110 := false
 	slaveStatusFound := false
 	var resolveErr error
+
+	if latency == nil {
+		latency = stopwatch.NewDummyNamedStopwatch()
+	}
 
 	if !instanceKey.IsValid() {
 		latencyBackendStop := latency.Start("backend")
